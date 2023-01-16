@@ -30,11 +30,12 @@ impl<C: Cache<Id>, Id: ?Sized> Cache<Id> for Box<C> {
 }
 
 /// A type representing a single line of a [`Source`].
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Line {
+    /// Start of the line as a byte offset.
     offset: usize,
+    /// Length of the line in bytes.
     len: usize,
-    chars: String,
 }
 
 impl Line {
@@ -46,9 +47,6 @@ impl Line {
 
     /// Get the offset span of this line in the original [`Source`].
     pub fn span(&self) -> Range<usize> { self.offset..self.offset + self.len }
-
-    /// Return an iterator over the characters in the line, excluding trailing whitespace.
-    pub fn chars(&self) -> impl Iterator<Item = char> + '_ { self.chars.chars() }
 }
 
 /// A type representing a single source that may be referred to by [`Span`]s.
@@ -56,8 +54,8 @@ impl Line {
 /// In most cases, a source is a single input file.
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Source {
+    text: String,
     lines: Vec<Line>,
-    len: usize,
 }
 
 impl<S: AsRef<str>> From<S> for Source {
@@ -66,49 +64,47 @@ impl<S: AsRef<str>> From<S> for Source {
     /// Note that this function can be expensive for long strings. Use an implementor of [`Cache`] where possible.
     fn from(s: S) -> Self {
         let mut offset = 0;
+        let text = s.as_ref().to_string();
+        let lines = text
+            .split_terminator('\n') // TODO: Handle non-\n newlines
+            .map(|line_text| {
+                let line = Line {
+                    offset,
+                    len: line_text.len() + 1,
+                };
+                offset += line.len;
+                line
+            })
+            .collect();
         Self {
-            lines: s
-                .as_ref()
-                .split_terminator('\n') // TODO: Handle non-\n newlines
-                .map(|line| {
-                    let l = Line {
-                        offset,
-                        len: line.chars().count() + 1,
-                        chars: line.trim_end().to_owned(),
-                    };
-                    offset += l.len;
-                    l
-                })
-                .collect(),
-            len: offset,
+            text,
+            lines,
         }
     }
 }
 
 impl Source {
-    /// Get the length of the total number of characters in the source.
-    pub fn len(&self) -> usize { self.len }
-
-    /// Return an iterator over the characters in the source.
-    pub fn chars(&self) -> impl Iterator<Item = char> + '_ {
-        self.lines.iter().map(|l| l.chars()).flatten()
-    }
+    /// Get the number of bytes in the source.
+    pub fn len(&self) -> usize { self.text.len() }
 
     /// Get access to a specific, zero-indexed [`Line`].
-    pub fn line(&self, idx: usize) -> Option<&Line> { self.lines.get(idx) }
+    pub fn line(&self, idx: usize) -> Option<Line> { self.lines.get(idx).copied() }
 
     /// Return an iterator over the [`Line`]s in this source.
-    pub fn lines(&self) -> impl ExactSizeIterator<Item = &Line> + '_ { self.lines.iter() }
+    pub fn lines(&self) -> impl ExactSizeIterator<Item = Line> + '_ { self.lines.iter().copied() }
+
+    /// Get the source text for a certain line.
+    pub fn get_line_source(&self, line: Line) -> &str { &self.text[line.span()] }
 
     /// Get the line that the given offset appears on, and the line/column numbers of the offset.
     ///
     /// Note that the line/column numbers are zero-indexed.
-    pub fn get_offset_line(&self, offset: usize) -> Option<(&Line, usize, usize)> {
-        if offset <= self.len {
+    pub fn get_offset_line(&self, offset: usize) -> Option<(Line, usize, usize)> {
+        if offset <= self.text.len() {
             let idx = self.lines
                 .binary_search_by_key(&offset, |line| line.offset)
                 .unwrap_or_else(|idx| idx.saturating_sub(1));
-            let line = &self.lines[idx];
+            let line = self.lines[idx];
             assert!(offset >= line.offset, "offset = {}, line.offset = {}", offset, line.offset);
             Some((line, idx, offset - line.offset))
         } else {

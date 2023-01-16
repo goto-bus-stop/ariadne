@@ -582,7 +582,7 @@ impl<S: Span> Report<'_, S> {
 
                 // Line
                 if !is_ellipsis {
-                    for (col, c) in line.chars().enumerate() {
+                    for (col, c) in src.get_line_source(line).chars().enumerate() {
                         let color = if let Some(highlight) = get_highlight(col) {
                             highlight.color
                         } else {
@@ -617,7 +617,7 @@ impl<S: Span> Report<'_, S> {
                             &margin_label,
                         )?;
                         // Lines alternate
-                        let mut chars = line.chars();
+                        let mut chars = src.get_line_source(line).chars();
                         for col in 0..arrow_len {
                             let width =
                                 chars.next().map_or(1, |c| self.config.char_width(c, col).1);
@@ -671,7 +671,7 @@ impl<S: Span> Report<'_, S> {
                         &margin_label,
                     )?;
                     // Lines
-                    let mut chars = line.chars();
+                    let mut chars = src.get_line_source(line).chars();
                     for col in 0..arrow_len {
                         let width = chars.next().map_or(1, |c| self.config.char_width(c, col).1);
 
