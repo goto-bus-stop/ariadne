@@ -1,6 +1,6 @@
 [package]
-name = "ariadne"
-version = "0.1.5"
+name = "apollo-ariadne"
+version = "0.2.0-alpha.0"
 description = "A fancy diagnostics & reporting crate"
 authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>"]
 license = "MIT"
@@ -13,6 +13,9 @@ exclude = [
 	"/misc",
 	"/misc/*",
 ]
+
+[lib]
+name = "ariadne"
 
 [features]
 auto-color = ["concolor", "concolor/auto"]

@@ -7,6 +7,8 @@
 
 A fancy compiler diagnostics crate.
 
+> This is a temporary fork for use by apollo-rs while we wait for a new release! Please do not rely on this.
+
 ## Example
 
 <a href = "https://github.com/zesterer/ariadne/blob/main/examples/multiline.rs">
